@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="TimeFlipView">
+        <attr name="backgroundColor" />
+        <attr name="android:textSize" />
+        <attr name="android:textColor" />
+        <attr name="android:textStyle" />
+        <attr name="android:dashGap" />
+        <attr name="time_padding" format="dimension" />
+        <attr name="time_paddingStart" format="dimension" />
+        <attr name="time_paddingEnd" format="dimension" />
+        <attr name="time_paddingTop" format="dimension" />
+        <attr name="time_paddingBottom" format="dimension" />
+        <attr name="time_paddingHorizontal" format="dimension" />
+        <attr name="time_paddingVertical" format="dimension" />
+        <attr name="time_sunken" format="dimension" />
+
+        <attr name="time_hasAnim" format="boolean" />
+        <attr name="android:radius" />
+        <attr name="time_itemWidth" format="dimension" />
+        <attr name="time_itemHeight" format="dimension" />
+
+    </declare-styleable>
+</resources>
