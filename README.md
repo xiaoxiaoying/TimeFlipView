@@ -1,6 +1,6 @@
 ### TimeFlipView
 
-[img](image/img.png)
+![示例图](image/img.png)
 
 use lib
 ```kotlin
