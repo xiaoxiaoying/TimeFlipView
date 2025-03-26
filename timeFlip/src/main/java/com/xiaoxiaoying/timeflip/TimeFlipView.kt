@@ -14,12 +14,13 @@ import android.os.CountDownTimer
 import android.text.TextPaint
 import android.text.TextUtils
 import android.util.AttributeSet
-import android.util.Log
+import android.view.Gravity
 import android.view.View
 import androidx.core.animation.doOnEnd
 import androidx.core.content.withStyledAttributes
 import com.xiaoxiaoying.timeflip.SizeUtils.getTextSize
 import java.util.Locale
+import kotlin.math.max
 import kotlin.math.min
 
 class TimeFlipView @JvmOverloads constructor(
@@ -69,7 +70,8 @@ class TimeFlipView @JvmOverloads constructor(
         private const val DAY = 24 * HOURS
     }
 
-    var isCountDownTimer: Boolean = true
+    private var stopTime: Long = 0L
+    private var isCountDownTimer: Boolean = false
 
     var time: Long = System.currentTimeMillis()
         set(value) {
@@ -131,6 +133,15 @@ class TimeFlipView @JvmOverloads constructor(
 
     private var itemWidth: Float = 0F
     private var itemHeight: Float = 0F
+    var gravity: Int = Gravity.CENTER
+        set(value) {
+            if (field == value) {
+                return
+            }
+            field = value
+            changeSize()
+            postInvalidate()
+        }
 
     init {
         context.withStyledAttributes(attrs, R.styleable.TimeFlipView, defStyleAttr, defStyleRes) {
@@ -143,7 +154,7 @@ class TimeFlipView @JvmOverloads constructor(
             sunken = getDimension(R.styleable.TimeFlipView_time_sunken, sunken)
             timeBackgroundColor =
                 getColor(R.styleable.TimeFlipView_backgroundColor, timeBackgroundColor)
-
+            isCountDownTimer = getBoolean(R.styleable.TimeFlipView_isCountDown, isCountDownTimer)
             timePaddingStart =
                 getDimension(R.styleable.TimeFlipView_time_paddingStart, timePaddingStart)
             timePaddingEnd = getDimension(R.styleable.TimeFlipView_time_paddingEnd, timePaddingEnd)
@@ -172,6 +183,8 @@ class TimeFlipView @JvmOverloads constructor(
             itemWidth = getDimension(R.styleable.TimeFlipView_time_itemWidth, itemWidth)
             itemHeight = getDimension(R.styleable.TimeFlipView_time_itemHeight, itemHeight)
 
+            gravity = getInt(R.styleable.TimeFlipView_android_gravity, gravity)
+
         }
 
         boxPaint.style = Paint.Style.FILL
@@ -186,38 +199,51 @@ class TimeFlipView @JvmOverloads constructor(
         // 获取屏幕宽度
         val screenWidth = resources.displayMetrics.widthPixels
         val winWith = getWinWidth()
-//        val winWith = 0F
-        // 确定宽度
-        val width = if (winWith > 0F) {
-            winWith.toInt()
-        } else if (widthMode == MeasureSpec.EXACTLY) {
+        val layoutWidth = if (widthMode == MeasureSpec.EXACTLY) {
             widthSize // 如果宽度是精确值（match_parent 或具体值），使用指定宽度
         } else {
             screenWidth // 如果宽度是 wrap_content，使用屏幕宽度
         }
+
+
+        // 确定宽度
+        val width = if (winWith > 0F && winWith < layoutWidth) {
+            winWith.toInt()
+        } else {
+            layoutWidth
+        }
         val size = digits.size
         // 冒号的宽度，比其他的窄
-        val colon = width / (size * 4F)
-        val boxWidth = (width - (size - 1) * dashGap - colon * 2) / (size - 2).toFloat()
-
-        // 处理高度
-        val height = if (itemHeight > 0F) {
-            itemHeight.toInt()
-        } else if (heightMode == MeasureSpec.AT_MOST) {
-            min(boxWidth.toDouble(), heightSize.toDouble()).toInt() // 不超过父布局的最大值
+        val colon = if (winWith > 0F) {
+            itemWidth / 4F
         } else {
-            boxWidth.toInt() // 未指定时使用自定义高度
+            width / (size * 4F)
         }
-        setMeasuredDimension(widthSize, height)
-    }
-
-    override fun onFinishInflate() {
-        super.onFinishInflate()
-        startTime()
+        val boxWidth = if (winWith > 0F) {
+            itemWidth
+        } else {
+            (width - (size - 1) * dashGap - colon * 2) / (size - 2).toFloat()
+        }
+        val layoutHeight = if (heightMode == MeasureSpec.EXACTLY) {
+            // 不超过父布局的最大值
+            if (itemHeight > 0F) {
+                min(itemHeight, heightSize.toFloat())
+            } else {
+                min(boxWidth, heightSize.toFloat())
+            }
+        } else {
+            if (itemHeight > 0F) {
+                itemHeight
+            } else {
+                max(boxWidth, itemHeight)
+            }
+            // 未指定时使用自定义高度
+        }
+        // 处理高度
+        setMeasuredDimension(width, layoutHeight.toInt())
     }
 
     private fun getWinWidth(): Float {
-
         if (itemWidth <= 0F) {
             return 0F
         }
@@ -228,36 +254,72 @@ class TimeFlipView @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
+        changeSize()
+    }
+
+    private fun changeSize() {
         val size = digits.size
         // 冒号的宽度，比其他的窄
-        val colon = w / (size * 4F)
-        val boxWidth = (w - (size - 1) * dashGap - colon * 2) / (size - 2).toFloat()
-        val boxHeight = h.toFloat()
+        val winWith = getWinWidth()
+        val colon = if (winWith > 0F && winWith < width) {
+            itemWidth / 4F
+        } else {
+            width / (size * 4F)
+        }
+        val boxWidth = if (winWith > 0F && winWith < width) {
+            itemWidth
+        } else {
+            (width - (size - 1) * dashGap - colon * 2) / (size - 2).toFloat()
+        }
+
+        val padding = if (winWith > 0F && winWith < width) {
+            when (gravity) {
+                Gravity.START -> {
+                    0F
+                }
+
+                Gravity.END -> {
+                    max(width - winWith, 0F)
+                }
+
+                else -> {
+                    max((width - winWith) / 2, 0F)
+                }
+            }
+
+        } else {
+            0F
+        }
+        val boxHeight = if (itemHeight > 0F && itemHeight < height) {
+            itemHeight
+        } else {
+            height.toFloat()
+        }
         (0 until size).forEach {
 
             when {
                 it > 5 -> {
-                    val left = (it - 2) * boxWidth + it * dashGap + 2 * colon
+                    val left = (it - 2) * boxWidth + it * dashGap + 2 * colon + padding
                     boxes[it].set(left, 0F, left + boxWidth, boxHeight)
                 }
 
                 it == 5 -> {
-                    val left = (it - 1) * boxWidth + it * dashGap + colon
+                    val left = (it - 1) * boxWidth + it * dashGap + colon + padding
                     boxes[it].set(left, 0F, left + colon, boxHeight)
                 }
 
                 it == 2 -> {
-                    val left = it * (boxWidth + dashGap)
+                    val left = it * (boxWidth + dashGap) + padding
                     boxes[it].set(left, 0F, left + colon, boxHeight)
                 }
 
                 it < 2 -> {
-                    val left = it * (boxWidth + dashGap)
+                    val left = it * (boxWidth + dashGap) + padding
                     boxes[it].set(left, 0F, left + boxWidth, boxHeight)
                 }
 
                 else -> {
-                    val left = (it - 1) * boxWidth + it * dashGap + colon
+                    val left = (it - 1) * boxWidth + it * dashGap + colon + padding
                     boxes[it].set(left, 0F, left + boxWidth, boxHeight)
                 }
             }
@@ -458,18 +520,17 @@ class TimeFlipView @JvmOverloads constructor(
         canvas.restore()
     }
 
-    private fun startTime() {
+    fun startTime() {
         startCountDownTimer()
     }
 
-
-    override fun onAttachedToWindow() {
-        if (countDownTimer != null) {
-            cancel()
-            countDownTimer = null
+    override fun setVisibility(visibility: Int) {
+        super.setVisibility(visibility)
+        if (visibility == VISIBLE) {
+            startTime()
+            return
         }
-        startTime()
-        super.onAttachedToWindow()
+        cancel()
     }
 
     override fun onDetachedFromWindow() {
@@ -478,6 +539,7 @@ class TimeFlipView @JvmOverloads constructor(
     }
 
     fun cancel() {
+        stopTime = System.currentTimeMillis()
         countDownTimer?.cancel()
     }
 
@@ -485,13 +547,25 @@ class TimeFlipView @JvmOverloads constructor(
         countDownTimer?.cancel()
         countDownTimer = object : CountDownTimer(Long.MAX_VALUE, SECONDS) {
             override fun onTick(millisUntilFinished: Long) {
+
+                val poor = if (stopTime > 0L) {
+                    (System.currentTimeMillis() - stopTime) / SECONDS
+                } else {
+                    0
+                }
+
+                if (poor > 0) {
+                    stopTime = 0L
+                }
                 if (isCountDownTimer) {
+                    time -= poor
                     time -= SECONDS
                     if (time <= 0L) {
                         onFinishCall()
                         countDownTimer?.cancel()
                     }
                 } else {
+                    time += poor
                     time += SECONDS
                 }
 
@@ -509,13 +583,11 @@ class TimeFlipView @JvmOverloads constructor(
     }
 
     private fun setTime(newTime: String) {
-        Log.i("888", "new time = $newTime")
         newDigits = newTime.split("").filter { !TextUtils.isEmpty(it) }.toTypedArray()
 
         if (digits.contentEquals(newDigits)) {
             return
         }
-        Log.i("888", "new time = ${newDigits.size}")
         if (!hasAnim) {
             newDigits.forEachIndexed { index, s ->
                 digits[index] = s

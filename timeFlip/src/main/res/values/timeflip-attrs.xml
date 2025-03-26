@@ -16,9 +16,11 @@
         <attr name="time_sunken" format="dimension" />
 
         <attr name="time_hasAnim" format="boolean" />
+        <attr name="isCountDown" format="boolean" />
         <attr name="android:radius" />
         <attr name="time_itemWidth" format="dimension" />
         <attr name="time_itemHeight" format="dimension" />
+        <attr name="android:gravity" />
 
     </declare-styleable>
 </resources>
