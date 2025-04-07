@@ -199,10 +199,11 @@ class TimeFlipView @JvmOverloads constructor(
         // 获取屏幕宽度
         val screenWidth = resources.displayMetrics.widthPixels
         val winWith = getWinWidth()
-        val layoutWidth = if (widthMode == MeasureSpec.EXACTLY) {
-            widthSize // 如果宽度是精确值（match_parent 或具体值），使用指定宽度
-        } else {
-            screenWidth // 如果宽度是 wrap_content，使用屏幕宽度
+
+        val layoutWidth = when (widthMode) {
+            MeasureSpec.EXACTLY -> widthSize
+            MeasureSpec.AT_MOST -> min(widthSize, screenWidth)
+            else -> screenWidth
         }
 
 
